@@ -2,15 +2,14 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useBookingWizard } from '@/hooks/useBookingWizard';
 import type { BookingFormData } from '@/types/booking';
 
-// Mock Next.js router
-const mockPush = jest.fn();
-const mockReplace = jest.fn();
+// Mock Next.js router - use a stable object reference to prevent infinite loops
+const mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+};
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: mockPush,
-    replace: mockReplace,
-  }),
+  useRouter: () => mockRouter,
   useSearchParams: () => new URLSearchParams('step=1'),
 }));
 
@@ -27,6 +26,8 @@ global.fetch = jest.fn();
 describe('useBookingWizard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRouter.push.mockClear();
+    mockRouter.replace.mockClear();
     (global.fetch as jest.Mock).mockReset();
   });
 
@@ -106,7 +107,7 @@ describe('useBookingWizard', () => {
     });
 
     // Should navigate to step 2
-    expect(mockPush).toHaveBeenCalledWith('/booking?step=2', { scroll: false });
+    expect(mockRouter.push).toHaveBeenCalledWith('/booking?step=2', { scroll: false });
   });
 
   it('should navigate to previous step', () => {
@@ -130,13 +131,13 @@ describe('useBookingWizard', () => {
       result.current.handlers.handleNext();
     });
 
-    mockPush.mockClear();
+    mockRouter.push.mockClear();
 
     act(() => {
       result.current.handlers.handlePrevious();
     });
 
-    expect(mockPush).toHaveBeenCalledWith('/booking?step=1', { scroll: false });
+    expect(mockRouter.push).toHaveBeenCalledWith('/booking?step=1', { scroll: false });
   });
 
   it('should not navigate before step 1', () => {
@@ -148,7 +149,7 @@ describe('useBookingWizard', () => {
 
     // Should still be on step 1
     expect(result.current.currentStep).toBe(1);
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockRouter.push).not.toHaveBeenCalled();
   });
 
   it('should clear validation errors when form is updated', () => {
